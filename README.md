@@ -14,10 +14,17 @@ pip install -e .
 ```
 under the same folder as `setup.py`. That's it, you are now ready to discover new conjectures.
 
-## The MITM_RF algorithm: 
+## The MITM_RF algorithm (and Experimental AI Upgrades): 
 The MITM algorithm will "mine" new Continued Fraction conjectures of the type:
 ![LHS_RHS](images/LHS_RHS.png)
 This project lets you control the equation space scanned by the algorithm.
+
+### Modern AI & GPU Enhancements (experimental-ai-gpu branch)
+This fork introduces a suite of cutting-edge computational approaches designed to scale relation discovery past brute-force combinatorics:
+* **PyTorch GPU Tensorization:** Fast, parallel arithmetic evaluations over millions of coefficient sets directly on standard CUDA GPUs (`GPUEfficientGCFEnumerator`).
+* **Heuristic Search Rollouts:** Employs Monte Carlo Tree Search (`MCTSPolyDomain`) and Continuous Gradient Descent relaxations (`ContinuousRelaxationDomain`) to stochastically optimize equation bounds bounding out divergent regions.
+* **Deep Learning Intelligence:** Integrated **PySR** Symbolic Regression frameworks, Auto-Regressive Datasets, and Reinforcement Learning reward structures to autonomously guide convergence mapping without hardcoded search grids (check the `/ramanujan/ai` module).
+* **Algebraic Pre-Filtering:** Deploys $O(1)$ Worpitzky boundary validations to mathematically predict divergence prior to execution overhead (`asymptotic_filter.py`).
 
 ## Running the code
 
