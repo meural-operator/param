@@ -12,7 +12,13 @@ class AlphaTensorMCTS:
     def __init__(self, env: AbstractRLEnvironment, network: ActorCriticGCFNetwork, 
                  num_simulations=100, c_puct=1.5):
         self.env = env
-        self.network = network
+        
+        # Determine the fastest available hardware
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        
+        # Mount the actor-critic network to the appropriate hardware
+        self.network = network.to(self.device)
+        
         self.num_simulations = num_simulations
         self.c_puct = c_puct
         
@@ -38,10 +44,15 @@ class AlphaTensorMCTS:
             
             # Walk down the tree until terminal depth
             for step in range(self.env.max_steps):
-                state_t = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
+                # Ensure the input tensor is mounted to the exact device the network expects
+                state_t = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
                 
                 with torch.no_grad():
                     action_mean, action_std, value = self.network(state_t)
+                
+                # Fetch output back to CPU for numpy operations if it was processed on GPU
+                action_mean = action_mean.cpu()
+                action_std = action_std.cpu()
                 
                 # Sample continuous action from the normal distribution defined by the policy
                 dist = torch.distributions.Normal(action_mean, action_std)
