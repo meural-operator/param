@@ -1,10 +1,14 @@
 import torch
+import queue
+import threading
+import mpmath
 from time import time
 from typing import List
 from tqdm import tqdm
 
-from .EfficientGCFEnumerator import EfficientGCFEnumerator, Match
-from ramanujan.constants import g_N_initial_search_terms
+from .EfficientGCFEnumerator import EfficientGCFEnumerator, Match, RefinedMatch
+from ramanujan.utils.mobius import EfficientGCF
+from ramanujan.constants import g_N_initial_search_terms, g_N_verify_terms, g_N_verify_compare_length
 
 class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
     """
@@ -21,7 +25,64 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
         else:
             print("[GPU] CUDA not available, falling back to CPU")
 
-    def _first_enumeration(self, verbose: bool) -> List[Match]:
+    def _worker_thread(self, verify_queue, shared_results, pbar_worker, verbose):
+        """
+        Background daemon evaluating high-precision mpmath on CPU.
+        """
+        with mpmath.workdps(g_N_verify_terms * 2): # Run CPU verify at hyper-precision
+            constant_vals = [const() for const in self.constants_generator]
+            
+            while True:
+                item = verify_queue.get()
+                if item is None: # Sentinel value
+                    verify_queue.task_done()
+                    break
+                    
+                match_obj = item
+                
+                # Step 1: Calculate High Precision Evaluate (Improve Precision)
+                an = self.create_an_series(match_obj.rhs_an_poly, g_N_verify_terms)
+                bn = self.create_bn_series(match_obj.rhs_bn_poly, g_N_verify_terms)
+                gcf = EfficientGCF(an, bn)
+                rhs_str = mpmath.nstr(gcf.evaluate(), g_N_verify_compare_length)
+                
+                # Step 2: Refine Results
+                try:
+                    all_matches = self.hash_table.evaluate(match_obj.lhs_key)
+                    valid = True
+                    for val, _, _ in all_matches:
+                        if mpmath.isinf(val) or mpmath.isnan(val):
+                            valid = False
+                            break
+                    if valid:
+                        for i, lhs_match in enumerate(all_matches):
+                            val_str = mpmath.nstr(lhs_match[0], g_N_verify_compare_length)
+                            if val_str == rhs_str:
+                                refined = RefinedMatch(*match_obj, i, lhs_match[1], lhs_match[2])
+                                shared_results.append(refined)
+                                if verbose:
+                                    tqdm.write(f"\n[!] VERIFIED CONJECTURE FOUND! {refined}")
+                except Exception:
+                    pass
+                    
+                pbar_worker.update(1)
+                pbar_worker.set_postfix({'Verified Hits': len(shared_results)})
+                verify_queue.task_done()
+
+    def full_execution(self, verbose=True):
+        """
+        Overrides AbstractGCFEnumerator's sequential pipeline.
+        We handle tracking and high-precision verification asynchronously.
+        """
+        return self._first_enumeration(verbose)
+        
+    def _improve_results_precision(self, *args, **kwargs):
+        raise NotImplementedError("Handled asynchronously in GPUEfficientGCFEnumerator")
+        
+    def _refine_results(self, *args, **kwargs):
+        raise NotImplementedError("Handled asynchronously in GPUEfficientGCFEnumerator")
+
+    def _first_enumeration(self, verbose: bool) -> List[RefinedMatch]:
         start = time()
         a_coef_iter = list(self.get_an_iterator())
         b_coef_iter = list(self.get_bn_iterator())
@@ -61,7 +122,19 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
             print(f"Created final enumerations filters after {time() - start:.2f}s")
             print(f"Batch evaluating {num_iterations} combinations on {self.device}...")
         
-        results = []
+        raw_hits = []
+        refined_results = []
+        
+        verify_queue = queue.Queue()
+        pbar_worker = tqdm(total=0, desc="CPU Verify", position=1, leave=False)
+        
+        worker_thread = threading.Thread(
+            target=self._worker_thread,
+            args=(verify_queue, refined_results, pbar_worker, verbose),
+            daemon=True
+        )
+        worker_thread.start()
+        
         key_factor = round(1 / self.threshold)
         processed_combinations = 0
         log_start_time = time()
@@ -156,22 +229,34 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
                         for idx_gpu, key in zip(match_indices_cpu, keys_cpu):
                             a_idx = i + int(idx_gpu) // chunk_b_size
                             b_idx = j + int(idx_gpu) % chunk_b_size
-                            results.append(Match(key, a_coef_list[a_idx], b_coef_list[b_idx]))
+                            match = Match(key, a_coef_list[a_idx], b_coef_list[b_idx])
+                            raw_hits.append(match)
+                            
+                            # Pass to parallel CPU Queue for mpmath digestion
+                            verify_queue.put(match)
+                            pbar_worker.total += 1
+                            pbar_worker.refresh()
                     
                     # ─────────────────────────────────────────────────────────
                     # LIVE PROGRESS LOGGING & ETA via tqdm
                     # ─────────────────────────────────────────────────────────
                     processed_combinations += bsz
                     pbar.update(bsz)
-                    pbar.set_postfix({'Hits': len(results)})
+                    pbar.set_postfix({'Raw Hits': len(raw_hits)})
                     
                     if verbose and (processed_combinations % (bsz * 50) == 0 or processed_combinations == num_iterations):
                         # Write persistently to log file every ~50 batches to avoid IO bottleneck
                         with open("search_progress.log", "a") as logf:
-                            log_str = f"Processed: {processed_combinations:,}/{num_iterations:,} | Hits: {len(results)}"
+                            log_str = f"Processed: {processed_combinations:,}/{num_iterations:,} | Raw Hits: {len(raw_hits)} | Verified: {len(refined_results)}"
                             logf.write(f"[{time()}] {log_str}\n")
                         
+        pbar_worker.set_description("CPU Draining Queue")
+        verify_queue.put(None)
+        verify_queue.join()
+        worker_thread.join()
+        pbar_worker.close()
+
         if verbose:
-            print(f"\nCreated results after {time() - start:.2f}s. Found {len(results)} preliminary matches.")
+            print(f"\nCreated results after {time() - start:.2f}s. Found {len(refined_results)} final verified matches.")
             
-        return results
+        return refined_results
