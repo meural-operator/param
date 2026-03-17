@@ -4,7 +4,7 @@ setuptools.setup(
     name="ramanujan",
     version="0.0.1",
     description="Ramanujan Machine",
-    packages=['ramanujan'],
+    packages=setuptools.find_packages(),
     install_requires=[
         'cycler>=0.10.0',
         'kiwisolver>=1.1.0',
