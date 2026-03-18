@@ -1,0 +1,17 @@
+# Virtual Environments
+client_env/
+__pycache__/
+
+# Local SQLite Mock Databases
+*.db
+*.sqlite3
+
+# Firebase & Cloud Credentials
+*.json
+!firebase_config.json.template 
+ramanujan-engine-firebase-adminsdk*.json
+
+# Execution Caches
+.pytest_cache/
+.coverage 
+*.log
