@@ -153,18 +153,37 @@ class ServerCoordinator:
         with open(self.token_path, "w") as f:
             json.dump(token_data, f, indent=4)
 
+    def _determine_hardware_tier(self):
+        import subprocess
+        try:
+            # Strictly probe the CUDA architecture VRAM capacities
+            res = subprocess.run(["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"], 
+                                 capture_output=True, text=True, check=True)
+            vram_mb = int(res.stdout.strip().split('\n')[0])
+            if vram_mb >= 16000:
+                print(f"[*] Hardware Profiler: {vram_mb}MB VRAM Detected. Assigning Tier: LARGE (Cluster).")
+                return "large"
+            if vram_mb >= 4000:
+                print(f"[*] Hardware Profiler: {vram_mb}MB VRAM Detected. Assigning Tier: MEDIUM (GPU).")
+                return "medium"
+        except Exception:
+            pass
+        print("[*] Hardware Profiler: No high-capacity GPUs detected. Assigning Tier: SMALL (CPU).")
+        return "small"
+
     def request_work_unit(self):
         if not self.id_token:
             print("[!] ERROR: Not authenticated.")
             return None
 
-        print("[*] Querying Firebase for pending work units...")
+        tier = self._determine_hardware_tier()
+        print(f"[*] Querying Firebase for {tier.upper()} phase spaces...")
         try:
-            # Query the Realtime Database for work_units where status is "pending"
-            work_units_query = self.db.child("work_units").order_by_child("status").equal_to("pending").limit_to_first(5).get(self.id_token)
+            # Query the Realtime Database for tiered capacities where status is "pending"
+            work_units_query = self.db.child(f"work_units_{tier}").order_by_child("status").equal_to("pending").limit_to_first(5).get(self.id_token)
             
             if not work_units_query.val():
-                print("[-] No pending work units available.")
+                print(f"[-] No pending [{tier}] work units available.")
                 return None
                 
             # Iterate through pending units to find one we can claim
@@ -172,7 +191,7 @@ class ServerCoordinator:
                 unit_id = unit.key()
                 unit_data = unit.val()
                 
-                print(f"[*] Attempting to claim Work Unit: {unit_id}")
+                print(f"[*] Attempting to claim Work Unit: {unit_id} (Size: {unit_data.get('evaluations', 'Unknown')} combos)")
                 
                 user_uid = self.user.get('localId', self.user.get('userId'))
                 
@@ -185,7 +204,7 @@ class ServerCoordinator:
                 
                 # Attempt the atomic-like update using the idToken and precise Security Rules
                 try:
-                    self.db.child("work_units").child(unit_id).update(update_data, self.id_token)
+                    self.db.child(f"work_units_{tier}").child(unit_id).update(update_data, self.id_token)
                     print(f"[+] Successfully claimed Work Unit {unit_id}!")
                     
                     if "id" not in unit_data:
@@ -203,12 +222,14 @@ class ServerCoordinator:
             print(f"[!] Failed to fetch work units: {e}")
             return None
 
-    def submit_results(self, work_unit_id, hits):
+    def submit_results(self, work_unit, hits):
         if not self.id_token:
             return False
             
         print(f"[*] Submitting {len(hits)} verified results to Firebase...")
         user_uid = self.user.get('localId', self.user.get('userId'))
+        work_unit_id = work_unit.get('id')
+        tier = work_unit.get('tier', 'small')
         
         try:
             for hit in hits:
@@ -223,10 +244,24 @@ class ServerCoordinator:
                 # Push the atomic hit object, relying on security rules to lock it eternally 
                 self.db.child("results").push(result_data, self.id_token)
             
-            # Finalize the workload block as completed
-            self.db.child("work_units").child(work_unit_id).update({
+            # Finalize the workload block as completed natively
+            self.db.child(f"work_units_{tier}").child(work_unit_id).update({
                 "status": "completed"
             }, self.id_token)
+            
+            # 2. LOG ANALYTICS: Update the Global User Contribution Tracker
+            try:
+                curr_evals = self.db.child("users").child(user_uid).child("total_evaluations").get(self.id_token).val() or 0
+                eval_payload = int(work_unit.get('evaluations', 0))
+                
+                self.db.child("users").child(user_uid).update({
+                    "display_name": self.user.get('name', 'Community Math AI'),
+                    "total_evaluations": curr_evals + eval_payload,
+                    "last_active": int(time.time()),
+                    "total_hits": (self.db.child("users").child(user_uid).child("total_hits").get(self.id_token).val() or 0) + len(hits)
+                }, self.id_token)
+            except Exception as analytic_e:
+                print(f"[-] Continuous Analytics update partially failed: {analytic_e}")
             
             print(f"[+] Successfully submitted {len(hits)} results and marked Work Unit {work_unit_id} as completed.")
             return True

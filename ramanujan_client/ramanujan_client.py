@@ -46,7 +46,7 @@ def main():
             hits = executor.execute_work_unit(work_unit)
             
             # Step 3: Serialize and submit the verified math hits backwards
-            sync_success = coordinator.submit_results(work_unit["id"], hits)
+            sync_success = coordinator.submit_results(work_unit, hits)
             
             if not sync_success:
                 print("[!] Warning: Failed to sync results to the Cloud database.")
