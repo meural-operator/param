@@ -125,7 +125,22 @@ class ServerCoordinator:
                 
                 # Standard raw Firebase Tokens do not possess infinite refresh paths
                 self.id_token = pasted_id_token
-                self.user = {"idToken": pasted_id_token}
+                
+                # Natively decrypt the JWT payload offline to securely extract the Firebase LocalID (UID)
+                local_id = "unknown_client"
+                try:
+                    parts = pasted_id_token.split('.')
+                    if len(parts) >= 2:
+                        import base64
+                        payload_b64 = parts[1]
+                        # Fix Base64Url padding constraints automatically
+                        payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
+                        payload = json.loads(base64.urlsafe_b64decode(payload_b64).decode('utf-8'))
+                        local_id = payload.get('user_id', payload.get('sub', "unknown_client"))
+                except Exception as e:
+                    print(f"[-] JWT UID extraction failed computationally: {e}")
+                    
+                self.user = {"idToken": pasted_id_token, "localId": local_id}
                 
                 print("[+] Fallback Authentication complete!")
                 return self.id_token
