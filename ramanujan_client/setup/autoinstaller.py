@@ -56,26 +56,32 @@ def install_dependencies(env_dir, has_gpu):
     subprocess.run([pip_exe, "install"] + base_packages, check=True)
     
     print("[*] Installing PyTorch subsystem...")
-    if has_gpu:
-        print("[+] NVIDIA GPU Detected! Installing heavy CUDA-accelerated PyTorch tensors...")
-        # Leverage highest stable pip bounds for CUDA compatibility.
-        subprocess.run([pip_exe, "install", "torch==2.10.0+cu130", "torchvision==0.25.0+cu130", "--index-url", "https://download.pytorch.org/whl/cu130"], check=True)
-    else:
-        print("[-] No NVIDIA GPU Detected. Auto-falling back to CPU-only PyTorch binaries (Lightweight)...")
-        if is_windows():
-            subprocess.run([pip_exe, "install", "torch==2.10.0", "torchvision==0.25.0"], check=True)
+    try:
+        if has_gpu:
+            print("[+] NVIDIA GPU Detected! Installing heavy CUDA-accelerated PyTorch tensors...")
+            # Leverage highest stable pip bounds for CUDA compatibility.
+            subprocess.run([pip_exe, "install", "torch==2.10.0+cu130", "torchvision==0.25.0+cu130", "--index-url", "https://download.pytorch.org/whl/cu130"], check=True)
         else:
-            subprocess.run([pip_exe, "install", "torch==2.10.0+cpu", "torchvision==0.25.0+cpu", "--index-url", "https://download.pytorch.org/whl/cpu"], check=True)
+            print("[-] No NVIDIA GPU Detected. Auto-falling back to CPU-only PyTorch binaries (Lightweight)...")
+            if is_windows():
+                subprocess.run([pip_exe, "install", "torch==2.10.0", "torchvision==0.25.0"], check=True)
+            else:
+                subprocess.run([pip_exe, "install", "torch==2.10.0+cpu", "torchvision==0.25.0+cpu", "--index-url", "https://download.pytorch.org/whl/cpu"], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"\n[!] WARNING: Advanced hardware PyTorch installation failed due to Python architecture constraints.")
+        print("[!] Falling back to standard universal PyPI PyTorch...")
+        subprocess.run([pip_exe, "install", "torch", "torchvision"])
             
 def install_ramanujan_machine_core(env_dir):
     pip_exe = get_pip_executable(env_dir)
-    print("\n[*] Fetching Core Computing Engine (V2) directly from Official Source Control...")
+    print("\n[*] Fetching Core Computing Engine (V2) directly from Local Source...")
     
-    # We install the exact engine via Git so the client is 100% standalone and distributed
+    # We install the exact engine via the local archive structure so the client is 100% standalone
     try:
-        subprocess.run([pip_exe, "install", "git+https://github.com/meural-operator/ramanujan_engineV2.git"], check=True)
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        subprocess.run([pip_exe, "install", repo_root], check=True)
         print("[+] Engine V2 Synced Successfully.")
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"[!] Critical Error linking engine source control: {e}")
 
 def main():

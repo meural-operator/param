@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ramanujan@Home - Secure Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #ffffff; text-align: center; padding-top: 100px; margin: 0; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #1e1e1e; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #4285f4; color: white; border: none; border-radius: 5px; margin: 20px; font-weight: bold; width: 100%; transition: 0.2s; }
+    button:hover { background-color: #357ae8; transform: translateY(-2px); }
+    #token-container { display: none; margin-top: 30px; background: #121212; padding: 20px; border-radius: 8px; border: 1px solid #333; word-break: break-all; }
+    #token { font-family: monospace; color: #00ff00; font-size: 14px; text-align: left; max-height: 150px; overflow-y: auto; }
+    .copy-btn { background-color: #34a853; font-size: 16px; padding: 12px 20px; width: 100%; margin: 10px 0; }
+    .copy-btn:hover { background-color: #278841; }
+  </style>
+  
+  <!-- Modern Firebase V10 Modular Web SDK loaded securely over CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+    // Uses the exact Web SDK settings from your Firebase Configuration Prompt
+    const firebaseConfig = {
+      apiKey: "AIzaSyCp1GpLSTGfjayQ-Yk0tW3dot1cOVpwxSE",
+      authDomain: "ramanujan-engine.firebaseapp.com",
+      projectId: "ramanujan-engine",
+      storageBucket: "ramanujan-engine.firebasestorage.app",
+      messagingSenderId: "662438808921",
+      appId: "1:662438808921:web:7d286acd925a08f1efd048"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    document.getElementById("login-btn").addEventListener("click", () => {
+      document.getElementById("login-btn").innerText = "Authenticating...";
+      
+      signInWithPopup(auth, provider)
+        .then((result) => {
+          return result.user.getIdToken();
+        })
+        .then((idToken) => {
+          document.getElementById("login-btn").style.display = "none";
+          document.getElementById("token-container").style.display = "block";
+          document.getElementById("token").innerText = idToken;
+          
+          document.getElementById("copy-btn").addEventListener("click", () => {
+             navigator.clipboard.writeText(idToken);
+             const btn = document.getElementById("copy-btn");
+             btn.innerText = "✓ Copied! Return to Terminal";
+             btn.style.backgroundColor = "#555";
+          });
+        })
+        .catch((error) => {
+          document.getElementById("login-btn").innerText = "Sign in with Google";
+          alert("Authentication Failed: " + error.message);
+        });
+    });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1 style="margin-top:0;">Ramanujan@Home</h1>
+    <h2 style="color:#aaa;">Community Compute Node Authentication</h2>
+    <p style="color:#888;">Securely sign in with Google to generate your cryptographic ID Token for the computation framework.</p>
+    
+    <button id="login-btn">Sign in with Google</button>
+    
+    <div id="token-container">
+      <h3 style="color:#34a853; margin-top:0;">Verification Complete!</h3>
+      <p>Click "Copy" below, then right-click inside your Python terminal to paste your Secure Node Token.</p>
+      <button id="copy-btn" class="copy-btn">📋 Copy ID Token</button>
+      <div id="token"></div>
+    </div>
+  </div>
+</body>
+</html>
