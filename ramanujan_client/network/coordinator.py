@@ -73,14 +73,21 @@ class ServerCoordinator:
         print("\n" + "="*50)
         print("          Ramanujan@Home - Authentication         ")
         print("="*50)
-        print("1. Visit our Firebase Authentication portal via your web browser:")
-        print("   https://ramanujan-engine.web.app (or your hosted Firebase page)")
+        print("1. Your web browser has automatically opened our secure portal:")
+        print("   https://ramanujan-engine.web.app")
+        print("   (If it didn't open, please visit that link manually).")
         print("2. Sign in with your Google Account.")
-        print("3. Copy the 'Firebase ID Token' displayed after login.")
-        print("4. Paste that Token here to proceed.\n")
+        print("3. Click 'Copy ID Token'.")
+        print("4. Right-click here and paste that Token to proceed.\n")
         
+        try:
+            import webbrowser
+            webbrowser.open("https://ramanujan-engine.web.app")
+        except Exception:
+            pass
+            
         # We need an id_token to exchange
-        pasted_id_token = input("Paste your Firebase ID Token here: ").strip()
+        pasted_id_token = input("Paste your Secure Node Token here: ").strip()
         
         if not pasted_id_token:
             print("[!] Authentication aborted.")
