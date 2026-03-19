@@ -15,17 +15,7 @@ if exist "%LOCALAPPDATA%\RamanujanPython\python.exe" (
     if %errorlevel% equ 0 (
         set PYTHON_CMD="%LOCALAPPDATA%\RamanujanPython\python.exe"
     )
-)
-
-:: Try py launcher
-if "%PYTHON_CMD%"=="" (
-    py -3.13 -V >nul 2>&1
-    if %errorlevel% equ 0 (
-        set PYTHON_CMD=py -3.13
-    )
-)
-
-:: Try default python command
+:: Try default python command if isolated python doesn't exist
 if "%PYTHON_CMD%"=="" (
     python -c "import sys; sys.exit(0 if sys.version_info.major == 3 and sys.version_info.minor == 13 else 1)" >nul 2>&1
     if %errorlevel% equ 0 (
