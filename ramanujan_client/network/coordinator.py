@@ -264,6 +264,9 @@ class ServerCoordinator:
         work_unit_id = work_unit.get('id')
         tier = work_unit.get('tier', 'small')
         
+        # Instantiate a pristine Database object to bypass Pyrebase query parameter bleed natively.
+        db = self.firebase.database()
+        
         try:
             for hit in hits:
                 result_data = {
@@ -275,23 +278,23 @@ class ServerCoordinator:
                 }
                 
                 # Push the atomic hit object, relying on security rules to lock it eternally 
-                self.db.child("results").push(result_data, self.id_token)
+                db.child("results").push(result_data, self.id_token)
             
             # Finalize the workload block as completed natively
-            self.db.child(f"work_units_{tier}").child(work_unit_id).update({
+            db.child(f"work_units_{tier}").child(work_unit_id).update({
                 "status": "completed"
             }, self.id_token)
             
             # 2. LOG ANALYTICS: Update the Global User Contribution Tracker
             try:
-                curr_evals = self.db.child("users").child(user_uid).child("total_evaluations").get(self.id_token).val() or 0
+                curr_evals = db.child("users").child(user_uid).child("total_evaluations").get(self.id_token).val() or 0
                 eval_payload = int(work_unit.get('evaluations', 0))
                 
-                self.db.child("users").child(user_uid).update({
+                db.child("users").child(user_uid).update({
                     "display_name": self.user.get('name', 'Community Math AI'),
                     "total_evaluations": curr_evals + eval_payload,
                     "last_active": int(time.time()),
-                    "total_hits": (self.db.child("users").child(user_uid).child("total_hits").get(self.id_token).val() or 0) + len(hits)
+                    "total_hits": (db.child("users").child(user_uid).child("total_hits").get(self.id_token).val() or 0) + len(hits)
                 }, self.id_token)
             except Exception as analytic_e:
                 print(f"[-] Continuous Analytics update partially failed: {analytic_e}")
