@@ -45,11 +45,28 @@ def main():
             # Step 2: Spin up the Async Dual-Thread GPU engine over the bounded space
             hits = executor.execute_work_unit(work_unit)
             
-            # Step 3: Serialize and submit the verified math hits backwards
-            sync_success = coordinator.submit_results(work_unit, hits)
+            # Step 2.5: FATAL DATA LOSS PREVENTION - Save verified hits locally!
+            if len(hits) > 0:
+                print(f"\n[!!!] CRITICAL: {len(hits)} VERIFIED MATHEMATICAL HITS DISCOVERED!")
+                print(f"[*] Writing to permanent local backup...")
+                with open("ramanujan_discoveries.log", "a", encoding="utf-8") as f:
+                    for ht in hits:
+                        f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CONSTANT: {work_unit.get('constant_name', 'Unknown')} | LHS: {ht.lhs_key} | a(n): {ht.rhs_an_poly} | b(n): {ht.rhs_bn_poly}\n")
+                print(f"[+] Local backup secured at ramanujan_discoveries.log\n")
+            
+            # Step 3: Serialize and submit the verified math hits backwards (with Retry)
+            retries = 0
+            sync_success = False
+            while not sync_success and retries < 5:
+                sync_success = coordinator.submit_results(work_unit, hits)
+                if not sync_success:
+                    retries += 1
+                    print(f"[-] Cloud Sync failed (Attempt {retries}/5). Retrying in 10 seconds...")
+                    time.sleep(10)
             
             if not sync_success:
-                print("[!] Warning: Failed to sync results to the Cloud database.")
+                print("[!] FATAL: Failed to sync results to the Cloud database after 5 attempts.")
+                print("[*] Chunk will be automatically recovered and re-computed by Dead Letter peers later.")
                 
             print("\n[*] Ready for next computation partition...\n")
             
