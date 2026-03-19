@@ -33,8 +33,6 @@ class RamanujanExecutor:
         print(f"[*] Execution Grid: {work_unit['range']}")
         print(f"==================================================\n")
         
-        # Translate the server JSON bounds strictly
-        min_bound, max_bound = work_unit['range']
         a_deg = work_unit['a_deg']
         b_deg = work_unit['b_deg']
         
@@ -46,13 +44,19 @@ class RamanujanExecutor:
             [self.const_val]
         )
         
-        # 2. Construct the bounded PolyDomain exclusively for this Node's partition
-        # We use Cartesian bounds natively here because the Central Server is the one executing
-        # the Neural MCTS macro-logic to determine the most promising partition bounds.
+        # 2. Construct the explicit Bounded PolyDomain for this specific Node Tier
+        # We temporarily initialize it with `[0, 0]` parameters because `global_seeder.py` 
+        # utilizes `split_domains_to_processes` which generates distinct non-overlapping
+        # coordinate hypercubes explicitly formatting `a_coef_range` as a list of lists.
         poly_search_domain = CartesianProductPolyDomain(
-            a_deg=a_deg, a_coef_range=[min_bound, max_bound],
-            b_deg=b_deg, b_coef_range=[min_bound, max_bound]
+            a_deg=a_deg, a_coef_range=[0, 0],
+            b_deg=b_deg, b_coef_range=[0, 0]
         )
+        
+        # Explicitly mount the exact mathematical hypercube boundaries
+        poly_search_domain.a_coef_range = work_unit.get('a_coef_range', [work_unit.get('range', [0, 0])] * (a_deg + 1))
+        poly_search_domain.b_coef_range = work_unit.get('b_coef_range', [work_unit.get('range', [0, 0])] * (b_deg + 1))
+        poly_search_domain._setup_metadata()
         
         # 3. Spin up the advanced Async dual-thread Engine V2 Enumerator
         enumerator = GPUEfficientGCFEnumerator(
