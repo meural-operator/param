@@ -61,7 +61,7 @@ if not exist "%USERPROFILE%\.ramanujan_env\Scripts\python.exe" (
 )
 
 :: 5. Generate Target Math Database if Missing
-if not exist "euler_mascheroni.db" (
+if not exist "..\euler_mascheroni.db" (
     echo [*] Generating Local LHS Verification Database ^(One-time math setup, takes ~10s^)...
     "%USERPROFILE%\.ramanujan_env\Scripts\python.exe" ..\scripts\seed_euler_mascheroni_db.py
 )
