@@ -1,6 +1,7 @@
 import json
 import os
-import pyrebase
+import urllib.request
+import urllib.error
 
 def reset_and_expand_cursor():
     config_path = "../ramanujan_client/firebase_config.json"
@@ -12,19 +13,25 @@ def reset_and_expand_cursor():
     with open(config_path, "r") as f:
         config = json.load(f)
         
-    firebase = pyrebase.initialize_app(config)
-    auth = firebase.auth()
-    db = firebase.database()
+    api_key = config["apiKey"]
+    database_url = config["databaseURL"]
     
-    print("[*] Authenticating...")
-    user = auth.sign_in_anonymous()
-    id_token = user['idToken']
+    # Authenticate anonymously using REST API
+    auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
+    req = urllib.request.Request(auth_url, data=b'{"returnSecureToken": true}', headers={'Content-Type': 'application/json'})
+    try:
+        with urllib.request.urlopen(req) as response:
+            auth_resp = json.loads(response.read().decode())
+    except urllib.error.URLError as e:
+        print("[!] Authentication failed", e)
+        return
+        
+    id_token = auth_resp["idToken"]
+    print("[*] Authenticated via REST...")
     
-    # ── Expanding the Mathematical Universe ──
-    # We set a massive new domain for the distributed workers
     new_cursor_state = {
         "degree": 2,
-        "chunk_width": 10,     
+        "chunk_width": 30,     
         "a_min": -100000,
         "a_max": 100000,
         "b_min": -100000,
@@ -34,9 +41,13 @@ def reset_and_expand_cursor():
     }
     
     print(f"[*] Overwriting V2 Dynamic Task Cursor on Firebase Realtime DB...")
-    db.child("v2_dynamic_tasks").child("cursor").set(new_cursor_state, id_token)
-    
-    print("[+] Cursor successfully expanded to [-100, 100] grid! Your clients will now resume computing.")
+    db_url = f"{database_url}/v2_dynamic_tasks/cursor.json?auth={id_token}"
+    req = urllib.request.Request(db_url, data=json.dumps(new_cursor_state).encode(), headers={'Content-Type': 'application/json'}, method='PUT')
+    try:
+        with urllib.request.urlopen(req) as response:
+            print("[+] Cursor successfully expanded with Chunk width 30! Your clients will now resume computing.")
+    except urllib.error.URLError as e:
+        print("[!] Failed to update database:", e)
 
 if __name__ == "__main__":
     reset_and_expand_cursor()
