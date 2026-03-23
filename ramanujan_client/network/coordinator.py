@@ -2,6 +2,7 @@ import json
 import os
 import time
 import uuid
+import requests
 
 import pyrebase
 
@@ -63,14 +64,17 @@ class ServerCoordinator:
         """
         print(f"[*] Querying V2 Dynamic Task Cursor...")
         try:
-            # 1. Fetch current cursor parameters
-            cursor_ref = self.db.child("v2_dynamic_tasks").child("cursor").get(self.id_token)
+            # 1. Fetch current cursor parameters with ETag for atomic locking
+            url = f"{self.firebase.database_url}/v2_dynamic_tasks/cursor.json?auth={self.id_token}"
+            headers = {'X-Firebase-ETag': 'true'}
             
-            if not cursor_ref.val():
-                print(f"[-] V2 Cursor not found in database. Sleeping.")
+            resp = requests.get(url, headers=headers)
+            if resp.status_code != 200 or not resp.json():
+                print(f"[-] V2 Cursor not found or unauthorized. Sleeping.")
                 return None
                 
-            cursor_data = cursor_ref.val()
+            cursor_data = resp.json()
+            etag = resp.headers.get('ETag')
             
             degree = cursor_data.get("degree", 2)
             chunk_width = cursor_data.get("chunk_width", 5)
@@ -110,15 +114,22 @@ class ServerCoordinator:
                 next_b = cursor_data.get("b_min", -30)
                 next_a += chunk_width
 
-            patch_data = {
-                "current_a_pos": next_a,
-                "current_b_pos": next_b
-            }
+            # Apply patch to local copy
+            cursor_data["current_a_pos"] = next_a
+            cursor_data["current_b_pos"] = next_b
             
-            # Note: In a true massive distribution we would use Firebase Transactions to avoid race conditions.
-            # Using basic update for simplicity.
-            self.db.child("v2_dynamic_tasks").child("cursor").update(patch_data, self.id_token)
-            print(f"[+] Successfully claimed V2 Bounds starting at a={curr_pos_a}, b={curr_pos_b}")
+            # 4. Attempt an Atomic Write using Firebase REST ETag
+            put_headers = {'if-match': etag}
+            put_resp = requests.put(url, json=cursor_data, headers=put_headers)
+            
+            if put_resp.status_code == 412: # HTTP 412 Precondition Failed
+                print(f"[-] Race collision detected! Another node locked these bounds just milliseconds ago. Re-entering queue...")
+                return None # The execution loop will natively retry and grab the next available spot
+            elif put_resp.status_code != 200:
+                print(f"[!] Atomic lock failed with status {put_resp.status_code}. Sleeping.")
+                return None
+
+            print(f"[+] Mutually Exclusive Lock Acquired: V2 Bounds starting at a={curr_pos_a}, b={curr_pos_b}")
 
             return work_unit
 
