@@ -14,7 +14,7 @@ from core.coordinators.firebase_coordinator import FirebaseCoordinator
 
 def main():
     print("==================================================")
-    print("        Ramanujan Engine V4 - Universal Node       ")
+    print("          Param Engine - Universal Node            ")
     print("==================================================")
     
     config_path = "firebase_config.json"

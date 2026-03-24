@@ -67,7 +67,7 @@ def install_dependencies(env_dir, has_gpu):
         else:
             subprocess.run([pip_exe, "install", "torch==2.10.0+cpu", "torchvision==0.25.0+cpu", "--index-url", "https://download.pytorch.org/whl/cpu"], check=True)
             
-def install_ramanujan_machine_core(env_dir):
+def install_param_core(env_dir):
     pip_exe = get_pip_executable(env_dir)
     print("\n[*] Fetching Core Computing Engine (V2) directly from Local Source...")
     
@@ -92,13 +92,13 @@ def main():
     
     setup_virtual_environment(env_dir)
     install_dependencies(env_dir, gpu_available)
-    install_ramanujan_machine_core(env_dir)
+    install_param_core(env_dir)
     
     python_exe = get_python_executable(env_dir)
     print("==================================================")
     print(" Installation Complete! ")
     print(" You can now run the distributed node by executing: ")
-    print(f" {python_exe} ramanujan_client.py")
+    print(f" {python_exe} param_client.py")
     print("==================================================")
 
 if __name__ == "__main__":

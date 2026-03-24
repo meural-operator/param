@@ -1,4 +1,4 @@
-# Ramanujan: Universal Distributed Scientific Computing Framework
+# Param: Universal Distributed Scientific Computing Framework
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/release/python-3130/)
@@ -220,7 +220,7 @@ cd clients
 > ✅ = Currently implemented &nbsp;&nbsp; 🔮 = Planned / Future extension
 
 ```text
-ramanujan-engine/
+param/
 │
 ├── core/                                        # ✅ Universal Framework (problem-agnostic)
 │   ├── __init__.py
@@ -349,7 +349,7 @@ ramanujan-engine/
 The Firebase Realtime Database is **problem-namespaced** — multiple scientific problems run on the same cluster simultaneously without schema changes.
 
 ```text
-ramanujan-engine/
+param/
 │
 ├── nodes/                              ← ONE entry per volunteer (no duplication)
 │   └── {node_id}/
@@ -454,8 +454,8 @@ For new problem domains, implement the 4 interfaces in `core/interfaces/` and re
 If you use this framework in your research, please cite:
 
 ```bibtex
-@software{ramanujan_engine,
-  title   = {Ramanujan: Universal Distributed Scientific Computing Framework},
+@software{param_engine,
+  title   = {Param: Universal Distributed Scientific Computing Framework},
   author  = {Ashish Musale},
   year    = {2026},
   url     = {https://github.com/meural-operator/param},

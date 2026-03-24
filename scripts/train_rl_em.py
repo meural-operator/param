@@ -238,7 +238,7 @@ def main():
         print(f"[Train] Best reward achieved:             {ckpt_mgr.best_mean_reward:.4f}")
         print(f"[Train] Best checkpoint: {ckpt_mgr.latest_path(ckpt_filename)}")
         print(f"\n[Train] To use this checkpoint in the distributed client, copy it to:")
-        print(f"        ramanujan_client/checkpoints/em_mcts.pt")
+        print(f"        param_client/checkpoints/em_mcts.pt")
 
 
 if __name__ == '__main__':

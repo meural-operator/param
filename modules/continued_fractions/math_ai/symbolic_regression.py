@@ -4,7 +4,7 @@ try:
 except ImportError:
     PySRRegressor = None
 
-class RamanujanSymbolicRegressor:
+class ParamSymbolicRegressor:
     """
     Integrates PySR to perform symbolic regression on successful generating sequences.
     Instead of manually crafting polynomial domains, PySR discovers

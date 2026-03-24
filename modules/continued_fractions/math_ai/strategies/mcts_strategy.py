@@ -28,7 +28,7 @@ class MCTSStrategy(BoundingStrategy):
         search_paths = [
             os.path.join(os.getcwd(), pt_filename),
             os.path.join(os.getcwd(), 'checkpoints', pt_filename),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ramanujan_client', 'checkpoints', pt_filename)),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'param_client', 'checkpoints', pt_filename)),
             os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'checkpoints', pt_filename))
         ]
         

@@ -4,7 +4,7 @@ import urllib.request
 import urllib.error
 
 def reset_and_expand_cursor():
-    config_path = "../ramanujan_client/firebase_config.json"
+    config_path = "../param_client/firebase_config.json"
     
     if not os.path.exists(config_path):
         print(f"[!] Please run this from the scripts folder. Could not find {config_path}")

@@ -1,6 +1,6 @@
-from clients.engine_bridge.executor import RamanujanExecutor
+from clients.engine_bridge.executor import ParamExecutor
 
-ex = RamanujanExecutor()
+ex = ParamExecutor()
 mock_wu = {
     "id": "test-001",
     "v2_bound_id": "bound_a_test_b_test",
