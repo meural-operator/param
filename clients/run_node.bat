@@ -3,7 +3,7 @@ setlocal DisableDelayedExpansion
 cd /d "%~dp0"
 
 echo ==================================================
-echo           Param@Home - One-Click Compute Node          
+echo        Ramanujan@Home - One-Click Compute Node          
 echo ==================================================
 
 set "PYTHON_CMD="

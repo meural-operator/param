@@ -3,7 +3,7 @@ setlocal DisableDelayedExpansion
 cd /d "%~dp0"
 
 echo ==================================================
-echo           Param@Home - One-Click Launcher          
+echo          Ramanujan@Home - One-Click Launcher          
 echo ==================================================
 echo.
 

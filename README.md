@@ -1,4 +1,4 @@
-# Param: Universal Distributed Scientific Computing Framework
+# Ramanujan@Home: Universal Distributed Scientific Computing Framework
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/release/python-3130/)
@@ -6,7 +6,7 @@
 [![Distributed Compute](https://img.shields.io/badge/Computing-Distributed_Edge-yellow.svg)](https://firebase.google.com/)
 [![Tests](https://img.shields.io/badge/Tests-15%2F15_Passing-brightgreen.svg)](#-testing)
 
-A globally distributed, GPU-accelerated computing framework that orchestrates **Deep Reinforcement Learning** with **High-Performance Tensor Operations** to solve complex scientific problems at scale. The framework is currently deployed for **mathematical constant discovery** via Generalized Continued Fractions (GCFs), targeting constants including the Euler-Mascheroni constant (γ), Riemann Zeta values (ζ(3), ζ(5), ζ(7)), Catalan's constant, and more — but its architecture generalizes to any pluggable scientific domain.
+A globally distributed, GPU-accelerated computing framework that orchestrates **Deep Reinforcement Learning** with **High-Performance Tensor Operations** to solve complex scientific problems at scale. Originally founded for **mathematical constant discovery** via Generalized Continued Fractions (GCFs), **Ramanujan@Home** has evolved into a universal engine capable of orchestrating any pluggable scientific domain.
 
 ---
 
@@ -73,7 +73,7 @@ Get a GPU compute node running in under 60 seconds:
 
 ```bash
 git clone https://github.com/meural-operator/param.git
-cd param/clients
+cd param
 .\run_node.bat
 ```
 

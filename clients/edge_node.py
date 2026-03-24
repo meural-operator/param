@@ -14,7 +14,7 @@ from core.coordinators.firebase_coordinator import FirebaseCoordinator
 
 def main():
     print("==================================================")
-    print("          Param Engine - Universal Node            ")
+    print("        Ramanujan@Home - Edge Compute Node        ")
     print("==================================================")
     
     config_path = "firebase_config.json"
