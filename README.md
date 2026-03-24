@@ -207,7 +207,6 @@ python edge_node.py
 ### 1-Click Deployment (Windows Volunteers)
 
 ```bash
-cd clients
 .\run_node.bat
 ```
 
