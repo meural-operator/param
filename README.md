@@ -66,9 +66,9 @@ flowchart TB
     end
 
     %% Execution and Data Flow
-    CLIENT ==>|1. Boot Sequence| ROUTER
-    COORD <==|2. Payload Transport| ROUTER
-    ROUTER ==>|3. Orchestrates Sequence| Contracts
+    CLIENT -->|1. Boot Sequence| ROUTER
+    ROUTER -->|2. Payload Transport| COORD
+    ROUTER -->|3. Orchestrates Sequence| Contracts
     
     PROB -.->|Resolves into| P_EM
     STRAT -.->|Resolves into| P_MCTS
