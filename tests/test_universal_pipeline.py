@@ -61,9 +61,11 @@ class TestV3Plugins(unittest.TestCase):
         }
         
         # Process arbitrary constraints through all logical checkpoints
-        hits = executor.execute_work_unit(work_unit)
+        hits, gpu_seconds, combinations = executor.execute_work_unit(work_unit)
         self.assertEqual(len(hits), 1)
         self.assertEqual(hits[0]['lhs_key'], "123")
+        self.assertIsInstance(gpu_seconds, float)
+        self.assertGreater(combinations, 0)
         
         # Explicit contract assertions ensuring sequentially correct structural I/O decoupling inside the loop
         mock_strategy.prune_bounds.assert_called_once_with([[0, 10]], [[0, 10]])

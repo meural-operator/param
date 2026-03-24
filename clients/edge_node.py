@@ -14,7 +14,7 @@ from core.coordinators.firebase_coordinator import FirebaseCoordinator
 
 def main():
     print("==================================================")
-    print("        Ramanujan Engine V3 - Subspace Node       ")
+    print("        Ramanujan Engine V4 - Universal Node       ")
     print("==================================================")
     
     config_path = "firebase_config.json"
@@ -36,7 +36,7 @@ def main():
             
     print("[*] Instantiating Generalized Discovery Plugins...")
     target = EulerMascheroniTarget()
-    network = FirebaseCoordinator(config_path)
+    network = FirebaseCoordinator(config_path, problem_name=target.name)
     engine = CUDAEnumerator()
     
     # Check if AI weights are distributed, and dynamically snap them into the pipeline
