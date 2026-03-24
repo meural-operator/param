@@ -13,6 +13,12 @@ Run this ONCE before distributing the node package.
 import os
 import sys
 import time
+
+# Ensure the framework root resolves safely when executed by Edge Node Client
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
+
 from modules.continued_fractions.LHSHashTable import LHSHashTable
 from modules.continued_fractions.targets import g_const_dict
 
@@ -42,7 +48,7 @@ def main():
     elapsed = time.time() - start
     print(f"[+] Successfully generated DB in {elapsed:.1f}s.")
     print(f"[+] File saved to: {dest_path}")
-    print(f"[+] Client is now ready to run `ramanujan_client.py`")
+    print(f"[+] Client is now ready to run `edge_node.py`")
 
 
 if __name__ == '__main__':

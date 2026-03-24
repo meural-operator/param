@@ -67,6 +67,6 @@ if not exist "..\euler_mascheroni.db" (
 )
 
 echo [*] Launching Client Application...
-"%USERPROFILE%\.ramanujan_env\Scripts\python.exe" ramanujan_client.py
+"%USERPROFILE%\.ramanujan_env\Scripts\python.exe" edge_node.py
 
 pause
