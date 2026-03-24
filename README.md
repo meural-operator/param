@@ -157,47 +157,138 @@ python -m unittest discover -s tests -v
 ---
 
 ## 📁 Directory Structure
+
+> ✅ = Currently implemented &nbsp;&nbsp; 🔮 = Planned / Future extension
+
 ```
 ramanujan_engineV2/
-├── core/                              # Universal Framework Engine
-│   ├── interfaces/                    #   Abstract Base Classes
-│   │   ├── base_problem.py            #     TargetProblem interface
-│   │   ├── base_strategy.py           #     BoundingStrategy interface
-│   │   ├── base_engine.py             #     ExecutionEngine interface
-│   │   └── base_coordinator.py        #     NetworkCoordinator interface
-│   ├── coordinators/                  #   Network I/O Implementations
-│   │   └── firebase_coordinator.py    #     Firebase REST coordinator
-│   └── pipeline.py                    #   UniversalPipelineRouter
 │
-├── modules/                           # Scientific Problem Modules
-│   └── continued_fractions/           #   GCF Discovery Module
-│       ├── targets/                   #     Mathematical constants
-│       │   └── euler_mascheroni.py    #       Euler-Mascheroni plugin
-│       ├── engines/                   #     GPU/CPU enumerators
-│       │   ├── GPUEfficientGCFEnumerator.py
-│       │   ├── EfficientGCFEnumerator.py
-│       │   └── cuda_gcf.py           #       V4 adapter wrapper
-│       ├── domains/                   #     Polynomial search spaces
-│       ├── math_ai/                   #     AlphaTensor + MCTS models
-│       │   ├── models/               #       Actor-Critic networks
-│       │   ├── training/             #       RL training utilities
-│       │   └── strategies/           #       MCTSStrategy plugin
-│       └── utils/                     #     Convergence filters, etc.
+├── core/                                        # ✅ Universal Framework Engine (problem-agnostic)
+│   ├── __init__.py
+│   ├── pipeline.py                              #    UniversalPipelineRouter — 4-stage orchestrator
+│   ├── interfaces/                              #    Abstract Base Classes (contracts)
+│   │   ├── base_problem.py                      #    TargetProblem — defines what to solve
+│   │   ├── base_strategy.py                     #    BoundingStrategy — how to prune search space
+│   │   ├── base_engine.py                       #    ExecutionEngine — hardware compute backend
+│   │   └── base_coordinator.py                  #    NetworkCoordinator — distributed I/O
+│   └── coordinators/                            #    Network implementations
+│       └── firebase_coordinator.py              #    Firebase REST API coordinator
 │
-├── clients/                           # Distributed Compute Nodes
-│   ├── edge_node.py                   #   Universal client entrypoint
-│   ├── run_node.bat                   #   1-click Windows deployer
-│   ├── checkpoints/                   #   Compiled RL weights (.pt)
-│   └── setup/                         #   Auto-installer scripts
+├── modules/                                     # ✅ Scientific Problem Modules
+│   └── continued_fractions/                     # ✅ Generalized Continued Fraction Discovery
+│       ├── constants.py                         #    g_const_dict — all mathematical constants
+│       ├── LHSHashTable.py                      #    Precomputed Möbius transform lookup
+│       ├── CachedSeries.py                      #    Cached polynomial series evaluator
+│       ├── multiprocess_enumeration.py          #    CPU multiprocess coordinator
+│       │
+│       ├── targets/                             #    Target constant plugins
+│       │   └── euler_mascheroni.py              #    ✅ Euler-Mascheroni (γ = 0.5772...)
+│       │
+│       ├── engines/                             #    GPU/CPU enumeration backends
+│       │   ├── AbstractGCFEnumerator.py         #    Base enumerator with shared logic
+│       │   ├── EfficientGCFEnumerator.py        #    ✅ CPU vectorized enumerator
+│       │   ├── GPUEfficientGCFEnumerator.py     #    ✅ CUDA tensor broadcast enumerator
+│       │   ├── FREnumerator.py                  #    ✅ Multi-dimensional PSLQ enumerator
+│       │   ├── ParallelGCFEnumerator.py         #    ✅ ProcessPool parallel enumerator
+│       │   ├── RelativeGCFEnumerator.py         #    ✅ Relative convergence enumerator
+│       │   └── cuda_gcf.py                      #    ✅ V4 CUDAEnumerator adapter wrapper
+│       │
+│       ├── domains/                             #    Polynomial search space definitions
+│       │   ├── AbstractPolyDomains.py           #    Base domain interface
+│       │   ├── CartesianProductPolyDomain.py    #    ✅ Full Cartesian product generator
+│       │   ├── ExplicitCartesianProductPolyDomain.py
+│       │   ├── MCTSPolyDomain.py                #    ✅ MCTS-guided search domain
+│       │   ├── NeuralMCTSPolyDomain.py          #    ✅ Neural network guided domain
+│       │   ├── ContinuousRelaxationDomain.py    #    ✅ Continuous relaxation optimizer
+│       │   ├── CatalanDomain.py                 #    ✅ Catalan constant domain
+│       │   ├── Zeta3Domain1.py                  #    ✅ ζ(3) Apéry-style domain
+│       │   ├── Zeta3Domain2.py                  #    ✅ ζ(3) alternate structure
+│       │   ├── Zeta3DomainWithRatC.py           #    ✅ ζ(3) with rational coefficients
+│       │   ├── Zeta5Domain.py                   #    ✅ ζ(5) multi-dim domain
+│       │   ├── Zeta7Domain.py                   #    ✅ ζ(7) domain
+│       │   └── ExamplePolyDomain.py             #    Template for new domains
+│       │
+│       ├── math_ai/                             #    Deep RL and symbolic AI
+│       │   ├── symbolic_regression.py           #    Symbolic regression utilities
+│       │   ├── models/                          #    Neural network architectures
+│       │   │   └── actor_critic.py              #    ✅ Actor-Critic policy network
+│       │   ├── agents/                          #    RL agent implementations
+│       │   │   └── alpha_tensor_mcts.py         #    ✅ AlphaTensor MCTS agent (12.9 KB)
+│       │   ├── environments/                    #    RL environment definitions
+│       │   │   ├── AbstractRLEnvironment.py     #    Base RL environment
+│       │   │   ├── EulerMascheroniEnvironment.py#    ✅ γ-specific reward environment
+│       │   │   └── GCFRewardEnvironment.py      #    ✅ Generic GCF reward shaper
+│       │   ├── training/                        #    Training infrastructure
+│       │   │   ├── ppo_trainer.py               #    ✅ PPO training loop
+│       │   │   ├── replay_buffer.py             #    ✅ Experience replay buffer
+│       │   │   └── checkpoint.py                #    ✅ Model save/load utilities
+│       │   └── strategies/                      #    Bounding strategy plugins
+│       │       └── mcts_strategy.py             #    ✅ MCTSStrategy (BoundingStrategy impl)
+│       │
+│       └── utils/                               #    Mathematical utilities
+│           ├── asymptotic_filter.py             #    ✅ Worpitzky convergence filter
+│           ├── convergence_rate.py              #    ✅ Digits-per-term calculator
+│           ├── mobius.py                        #    ✅ Möbius transformation engine (12 KB)
+│           ├── latex.py                         #    LaTeX formula renderer
+│           └── utils.py                         #    General math helpers
 │
-├── research_training/                 # Dedicated RL Training Pipeline
-│   ├── train.py                       #   PPO curriculum trainer
-│   ├── config.yaml                    #   Hyperparameter config
-│   └── eval_mcts.py                   #   MCTS visualizer
+│   ├── protein_folding/                         # 🔮 Future: Protein structure prediction
+│   ├── prime_gaps/                              # 🔮 Future: Prime gap analysis
+│   └── symbolic_integration/                    # 🔮 Future: Symbolic integral discovery
 │
-├── scripts/                           # Utility & Seeder Scripts
-├── tests/                             # Unit & Integration Tests
-└── README.md
+├── clients/                                     # ✅ Distributed Edge Compute Nodes
+│   ├── edge_node.py                             #    Universal client entrypoint
+│   ├── run_node.bat                             #    1-click Windows deployer (Micromamba)
+│   ├── firebase_config.json                     #    Auto-generated cloud credentials
+│   ├── checkpoints/                             #    Compiled RL weight artifacts
+│   │   └── em_mcts.pt                           #    ✅ Trained MCTS weights (3.6 MB)
+│   └── setup/                                   #    Auto-installer scripts
+│       ├── autoinstaller.py                     #    Dependency bootstrapper
+│       ├── global_seeder.py                     #    Firebase work-unit seeder
+│       └── genesis_wipe.py                      #    Database reset utility
+│
+├── research_training/                           # ✅ Dedicated RL Training Pipeline
+│   ├── train.py                                 #    PPO curriculum trainer (10 KB)
+│   ├── config.yaml                              #    Hyperparameter configuration
+│   ├── env_curriculum.py                        #    Curriculum level progression
+│   ├── eval_mcts.py                             #    MCTS inference visualizer
+│   └── runs/                                    #    TensorBoard log directory
+│
+├── scripts/                                     # ✅ Utility & Research Scripts
+│   ├── seed_euler_mascheroni_db.py              #    LHS hash table generator
+│   ├── train_rl_em.py                           #    Standalone RL training script
+│   ├── euler_mascheroni_ai_search.py            #    AI-guided search launcher
+│   ├── euler_mascheroni_research_grade.py       #    Research-grade evaluation
+│   ├── reset_v2_cursor.py                       #    Firebase cursor reset tool
+│   ├── multiprocessing_example.py               #    CPU parallelism demo
+│   ├── zeta3_fr_results.py                      #    ζ(3) result analysis
+│   ├── zeta3_infinite_family.py                 #    ζ(3) infinite family searcher
+│   ├── boinc/                                   #    BOINC distributed computing
+│   │   ├── execute_from_json.py                 #    JSON work-unit executor
+│   │   └── split_execution.py                   #    Work-unit splitter
+│   └── paper_results/                           #    Published paper reproductions
+│       ├── e_results.py                         #    Euler's number results
+│       ├── pi_results.py                        #    π results
+│       └── zeta3_results.py                     #    ζ(3) results
+│
+├── tests/                                       # ✅ Unit & Integration Tests (22/23 passing)
+│   ├── test_interfaces.py                       #    Core ABC contract tests
+│   ├── test_universal_pipeline.py               #    V4 pipeline integration tests
+│   ├── test_ai_modules.py                       #    Actor-Critic network tests
+│   ├── test_asymptotic_filter.py                #    Worpitzky convergence tests
+│   ├── test_gpu_enumerators.py                  #    GPU vs CPU parity tests
+│   ├── test_fr_expansion.py                     #    Multi-dim PSLQ tests
+│   ├── test_poly_domains.py                     #    Domain generator tests
+│   ├── test_large_catalan.py                    #    Large Catalan constant tests
+│   ├── conjectures_tests.py                     #    Known conjecture validations
+│   └── boinc_scripts_tests.py                   #    BOINC integration tests
+│
+├── ESMA/                                        # ✅ Legacy reference implementation
+├── documentation/                               # ✅ Research papers & notes
+├── README.md                                    #    This file
+├── CHANGELOG.md                                 #    Version history
+├── setup.py                                     #    Package installer
+└── requirements.txt                             #    Python dependencies
 ```
 
 ---
