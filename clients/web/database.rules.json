@@ -12,7 +12,7 @@
         },
         "config": {
           ".read": "auth != null",
-          ".write": false
+          ".write": "auth != null"
         },
         "stats": {
           ".read": "auth != null",
