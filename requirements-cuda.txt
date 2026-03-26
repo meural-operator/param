@@ -1,0 +1,21 @@
+# =============================================================================
+# Ramanujan@Home — CUDA-Accelerated Dependencies
+# =============================================================================
+# Use this file if you have an NVIDIA GPU with CUDA support.
+#
+# INSTALL:
+#   pip install -r requirements-cuda.txt
+#
+# This installs PyTorch with CUDA 13.0 support (RTX 40/50 series, Ada, etc.)
+# For older GPUs (CUDA 12.x), change cu130 → cu124 below.
+# =============================================================================
+
+# Pull in all base dependencies first
+-r requirements.txt
+
+# ---------------------------------------------------------------------------
+#  Override PyTorch with CUDA-enabled builds
+# ---------------------------------------------------------------------------
+--extra-index-url https://download.pytorch.org/whl/cu130
+torch==2.10.0+cu130
+torchvision==0.25.0+cu130

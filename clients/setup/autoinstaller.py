@@ -1,107 +1,126 @@
 import os
 import sys
 import subprocess
-import venv
 import shutil
 
 def is_windows():
     return sys.platform == "win32"
 
 def has_nvidia_gpu():
+    """Detect NVIDIA GPU via nvidia-smi."""
     try:
-        # Check system PATH for nvidia-smi. Extremely fast validation for NVIDIA drivers.
-        result = subprocess.run(["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            return True
-        return False
+        result = subprocess.run(
+            ["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        return result.returncode == 0
     except FileNotFoundError:
         return False
 
-def setup_virtual_environment(env_dir):
-    print(f"[*] Creating Python virtual environment in {env_dir}...")
-    if os.path.exists(env_dir):
-        print("[!] Virtual environment already exists. Using existing environment.")
-    else:
-        builder = venv.EnvBuilder(with_pip=True)
-        builder.create(env_dir)
-    print(f"[+] Virtual environment created at {env_dir}")
-
-def get_pip_executable(env_dir):
-    if is_windows():
-        return os.path.join(env_dir, "Scripts", "pip.exe")
-    else:
-        return os.path.join(env_dir, "bin", "pip")
-
-def get_python_executable(env_dir):
-    if is_windows():
-        return os.path.join(env_dir, "Scripts", "python.exe")
-    else:
-        return os.path.join(env_dir, "bin", "python")
-
-def install_dependencies(env_dir, has_gpu):
-    pip_exe = get_pip_executable(env_dir)
-    
-    # Mathematical and core dependencies derived from the master engine
-    base_packages = [
-        "mpmath==1.3.0",
-        "numpy==2.3.5",
-        "scipy==1.17.1", 
-        "sympy==1.14.0",
-        "tqdm",
-        "requests", # Exclusively required for Ramanujan@Home Client-Server handshakes
-        "pyrebase4",
-        "pybloom_live",
-        "ortools"
-    ]
-    
-    print(f"[*] Installing base math dependencies: {', '.join(base_packages)}")
-    subprocess.run([pip_exe, "install"] + base_packages, check=True)
-    
-    print("[*] Installing PyTorch subsystem...")
-    if has_gpu:
-        print("[+] NVIDIA GPU Detected! Installing heavy CUDA-accelerated PyTorch tensors...")
-        # Leverage highest stable pip bounds for CUDA compatibility.
-        subprocess.run([pip_exe, "install", "torch==2.10.0+cu130", "torchvision==0.25.0+cu130", "--index-url", "https://download.pytorch.org/whl/cu130"], check=True)
-    else:
-        print("[-] No NVIDIA GPU Detected. Auto-falling back to CPU-only PyTorch binaries (Lightweight)...")
-        if is_windows():
-            subprocess.run([pip_exe, "install", "torch==2.10.0", "torchvision==0.25.0"], check=True)
-        else:
-            subprocess.run([pip_exe, "install", "torch==2.10.0+cpu", "torchvision==0.25.0+cpu", "--index-url", "https://download.pytorch.org/whl/cpu"], check=True)
-            
-def install_param_core(env_dir):
-    pip_exe = get_pip_executable(env_dir)
-    print("\n[*] Fetching Ramanujan@Home Engine directly from Local Source...")
-    
-    # We install the exact engine via the local archive structure so the client is 100% standalone
+def has_conda():
+    """Check if conda is available in the system PATH."""
     try:
-        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        subprocess.run([pip_exe, "install", repo_root], check=True)
-        print("[+] Engine Synced Successfully.")
-    except Exception as e:
-        print(f"[!] Critical Error linking engine source control: {e}")
+        result = subprocess.run(
+            ["conda", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
 
-def main():
-    print("==================================================")
-    print("      Ramanujan@Home - Setup & Autoinstaller      ")
-    print("==================================================")
+def setup_conda_env(repo_root, env_name="curiosity"):
+    """Create or update the conda environment from environment.yml."""
+    env_file = os.path.join(repo_root, "environment.yml")
     
-    # Creates an isolated compute domain located functionally at the root of the User Profile
-    # This purposefully overrides standard logic to natively bypass the notorious Windows 260 character MAX_PATH API limitation
+    if not os.path.exists(env_file):
+        print("[!] environment.yml not found. Falling back to pip-based setup.")
+        return False
+    
+    # Check if environment already exists
+    result = subprocess.run(
+        ["conda", "env", "list"], capture_output=True, text=True
+    )
+    env_exists = env_name in result.stdout
+    
+    if env_exists:
+        print(f"[*] Updating existing conda environment '{env_name}'...")
+        subprocess.run(
+            ["conda", "env", "update", "-n", env_name, "-f", env_file, "--prune"],
+            check=True
+        )
+    else:
+        print(f"[*] Creating new conda environment '{env_name}'...")
+        subprocess.run(
+            ["conda", "env", "create", "-f", env_file],
+            check=True
+        )
+    
+    print(f"[+] Conda environment '{env_name}' ready.")
+    return True
+
+def setup_pip_env(repo_root, has_gpu):
+    """Fallback: create a venv and install deps via pip."""
+    import venv
+    
     env_dir = os.path.abspath(os.path.join(os.path.expanduser("~"), ".param_env"))
     
+    if not os.path.exists(env_dir):
+        print(f"[*] Creating Python virtual environment at {env_dir}...")
+        builder = venv.EnvBuilder(with_pip=True)
+        builder.create(env_dir)
+    else:
+        print(f"[*] Using existing virtual environment at {env_dir}")
+    
+    pip_exe = os.path.join(env_dir, "Scripts" if is_windows() else "bin", "pip")
+    
+    # Select the right requirements file
+    if has_gpu:
+        req_file = os.path.join(repo_root, "requirements-cuda.txt")
+        print("[+] NVIDIA GPU detected — installing CUDA-accelerated PyTorch.")
+    else:
+        req_file = os.path.join(repo_root, "requirements.txt")
+        print("[-] No NVIDIA GPU detected — installing CPU-only PyTorch.")
+    
+    print(f"[*] Installing dependencies from {os.path.basename(req_file)}...")
+    subprocess.run([pip_exe, "install", "-r", req_file], check=True)
+    
+    # Install the project itself in editable mode
+    print("[*] Installing Ramanujan@Home engine (editable)...")
+    subprocess.run([pip_exe, "install", "-e", repo_root], check=True)
+    
+    python_exe = os.path.join(env_dir, "Scripts" if is_windows() else "bin", "python")
+    return python_exe
+
+def main():
+    print("=" * 60)
+    print("      Ramanujan@Home — Smart Environment Installer")
+    print("=" * 60)
+    
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     gpu_available = has_nvidia_gpu()
+    conda_available = has_conda()
     
-    setup_virtual_environment(env_dir)
-    install_dependencies(env_dir, gpu_available)
-    install_param_core(env_dir)
+    print(f"\n  System: {'Windows' if is_windows() else 'Linux/macOS'}")
+    print(f"  GPU:    {'NVIDIA detected ✓' if gpu_available else 'Not detected (CPU mode)'}")
+    print(f"  Conda:  {'Available ✓' if conda_available else 'Not found (using pip/venv)'}")
+    print()
     
-    python_exe = get_python_executable(env_dir)
-    print("==================================================")
-    print(" Installation Complete! ")
-    print(" You can now run the distributed node by executing: ")
-    print(f" {python_exe} edge_node.py")
-    print("==================================================")
+    if conda_available:
+        # Preferred path: use conda
+        success = setup_conda_env(repo_root)
+        if success:
+            print("\n" + "=" * 60)
+            print("  Setup Complete!")
+            print("  Activate with:  conda activate curiosity")
+            print("  Then run:       python scripts/evolve_miner.py --target pi")
+            print("=" * 60)
+            return
+    
+    # Fallback: pip + venv
+    python_exe = setup_pip_env(repo_root, gpu_available)
+    
+    print("\n" + "=" * 60)
+    print("  Setup Complete!")
+    print(f"  Run with:  {python_exe} scripts/evolve_miner.py --target pi")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()
