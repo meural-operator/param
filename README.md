@@ -4,9 +4,10 @@
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/release/python-3130/)
 [![PyTorch CUDA](https://img.shields.io/badge/PyTorch-CUDA_Ready-EE4C2C.svg)](https://pytorch.org/)
 [![Distributed Compute](https://img.shields.io/badge/Computing-Distributed_Edge-yellow.svg)](https://firebase.google.com/)
-[![Tests](https://img.shields.io/badge/Tests-15%2F15_Passing-brightgreen.svg)](#-testing)
+[![Tests](https://img.shields.io/badge/Tests-22%2F22_Passing-brightgreen.svg)](#-testing)
+[![AlphaEvolve](https://img.shields.io/badge/AlphaEvolve-LLM_Guided-blueviolet.svg)](#-alphaevolve--llm-guided-evolutionary-search)
 
-A globally distributed, GPU-accelerated computing framework that orchestrates **Deep Reinforcement Learning** with **High-Performance Tensor Operations** to solve complex scientific problems at scale. Originally founded for **mathematical constant discovery** via Generalized Continued Fractions (GCFs), **Ramanujan@Home** has evolved into a universal engine capable of orchestrating any pluggable scientific domain.
+A globally distributed, GPU-accelerated computing framework that orchestrates **Deep Reinforcement Learning**, **LLM-Guided Evolutionary Search**, and **High-Performance Tensor Operations** to solve complex scientific problems at scale. Originally founded for **mathematical constant discovery** via Generalized Continued Fractions (GCFs), **Ramanujan@Home** has evolved into a universal engine capable of orchestrating any pluggable scientific domain.
 
 ---
 
@@ -16,6 +17,7 @@ A globally distributed, GPU-accelerated computing framework that orchestrates **
 - [Requirements](#-requirements)
 - [Quickstart](#-quickstart)
 - [Architecture & Hierarchy](#%EF%B8%8F-architecture--hierarchy)
+- [AlphaEvolve — LLM-Guided Evolutionary Search](#-alphaevolve--llm-guided-evolutionary-search)
 - [Available Modules](#%EF%B8%8F-available-modules)
 - [RL Agent & Training](#-rl-agent--training)
 - [Full Setup Guide](#-full-setup-guide)
@@ -34,6 +36,7 @@ A globally distributed, GPU-accelerated computing framework that orchestrates **
 | Feature | Description |
 | --- | --- |
 | **Universal Pipeline Router** | An abstract execution engine (`core/pipeline.py`) that decouples problem definition, search strategy, compute engine, and network coordination into interchangeable plugins. |
+| **AlphaEvolve (LLM-Guided Search)** | A DeepMind-inspired evolutionary engine that uses a local LLM (Qwen3-Coder-30B via LM Studio) to evolve Python lambda programs for `a(n)` / `b(n)` GCF sequences — discovering novel mathematical structures beyond fixed-degree polynomials. |
 | **Deep RL Search Optimization** | AlphaTensor MCTS heuristics intelligently prune coordinate spaces to focus GPU compute on high-probability regions. |
 | **LLL/PSLQ Identity Resolver** | Automatic algebraic identity detection — transforms numerical matches into proven closed-form expressions using lattice basis reduction. |
 | **Modular Problem System** | Scientific problems are self-contained modules. Expanding the framework to new domains requires no changes to core infrastructure. |
@@ -53,31 +56,66 @@ A globally distributed, GPU-accelerated computing framework that orchestrates **
 - **CPU-only mode:** Supported via `ProcessPoolExecutor` fallback, but significantly slower
 - **RAM:** 8 GB minimum, 16 GB recommended for large polynomial degree sweeps
 - **Storage:** ~500 MB for dependencies + model weights
+- **LM Studio (optional):** For AlphaEvolve LLM-guided search — any GGUF model ≥ 8B parameters
 
 ### Software
 
 - **Python:** 3.13+
-- **PyTorch:** 2.x with CUDA toolkit matching your GPU driver
+- **PyTorch:** 2.10+ with CUDA 13.0 (or CPU-only)
 - **mpmath:** For arbitrary-precision verification (1000+ digit comparisons)
 - **sympy:** Symbolic mathematics (constants dictionary, Möbius transforms)
+- **gymnasium:** RL environments for MCTS agent training
+- **scikit-learn:** Feature engineering for AI modules
 - **Firebase Admin / Pyrebase:** For distributed coordination
 - **TensorBoard:** For training visualization (optional, for `research_training/`)
 
-> Dependencies are managed via `setup/environment.yml` (Conda) or auto-installed by `run_node.bat` (Micromamba).
+> All dependencies are managed via `environment.yml` (Conda), `requirements.txt` / `requirements-cuda.txt` (pip), or auto-installed by `clients/setup/autoinstaller.py`.
 
 ---
 
 ## ⚡ Quickstart
 
-Get a GPU compute node running in under 60 seconds:
+### Option A: Conda (Recommended for researchers)
 
 ```bash
 git clone https://github.com/meural-operator/Ramanujan-Home.git
 cd Ramanujan-Home
+
+# Creates 'curiosity' env with Python 3.13, PyTorch CUDA, and all deps
+conda env create -f environment.yml
+conda activate curiosity
+
+# Run the AlphaEvolve evolutionary miner (uses LM Studio if available)
+python scripts/evolve_miner.py --target pi --generations 100
+```
+
+### Option B: pip (CPU or GPU)
+
+```bash
+# CPU only
+pip install -r requirements.txt
+
+# NVIDIA GPU (CUDA 13.0)
+pip install -r requirements-cuda.txt
+```
+
+### Option C: 1-Click Deployment (Windows volunteers)
+
+```bash
 .\run_node.bat
 ```
 
-> The script automatically installs Python 3.13 via Micromamba, bootstraps all dependencies, generates Firebase credentials, seeds the LHS verification tables, and launches the GPU compute node. No manual configuration required.
+> The batch script automatically installs Python 3.13 via Micromamba, bootstraps all dependencies, generates Firebase credentials, seeds the LHS verification tables, and launches the GPU compute node.
+
+### Option D: Smart Auto-Installer
+
+```bash
+python clients/setup/autoinstaller.py
+```
+
+> Auto-detects conda vs pip, NVIDIA GPU vs CPU, and installs the correct configuration.
+
+For the full setup guide, see [`INSTALL.md`](INSTALL.md).
 
 ---
 
@@ -122,6 +160,7 @@ No changes to `core/` are required. The pipeline automatically routes through yo
 | Module | Directory | Status | Description |
 | --- | --- | --- | --- |
 | **Continued Fractions** | `modules/continued_fractions/` | ✅ Active | GPU-accelerated discovery of novel GCF formulas for mathematical constants (γ, ζ(3), ζ(5), ζ(7), Catalan, Khinchin, etc.) |
+| **AlphaEvolve Engine** | `modules/.../math_ai/agents/` | ✅ Active | LLM-guided evolutionary search for novel GCF programs using Qwen3-Coder-30B |
 | **RL Training Suite** | `research_training/` | ✅ Active | Curriculum PPO training for the AlphaTensor MCTS neural bounds pruner |
 
 ### Supported Mathematical Constants
@@ -136,10 +175,55 @@ The continued fractions module ships with a built-in constants dictionary (`modu
 | Pi | π, π² | Classical constant with Möbius transform lookups |
 | Euler's Number | e | Exponential constant |
 | Golden Ratio | φ ≈ 1.6180 | Algebraic constant |
+| ln(2) | ln 2 | Natural logarithm of 2 |
+| √2 | √2 | Square root of 2 |
 | Khinchin | K ≈ 2.6854 | Geometric mean of CF partial quotients |
 | Polygamma | ψ⁽ⁿ⁾ | Higher derivatives of the digamma function |
 
 *Future modules can be added by implementing the 4 core interfaces — see [Architecture](#%EF%B8%8F-architecture--hierarchy) section above.*
+
+---
+
+## 🧬 AlphaEvolve — LLM-Guided Evolutionary Search
+
+Inspired by DeepMind's AlphaEvolve, this module uses a local LLM to **evolve Python programs** that generate GCF sequences converging to mathematical constants. Instead of searching over fixed-degree polynomial coefficients, it searches over the space of _all computable functions_.
+
+### How It Works
+
+1. **Population:** Maintains a pool of candidate programs, each defined by two Python lambda expressions `a(n)` and `b(n)`
+2. **Fitness:** Each program is evaluated by computing its GCF convergent over 200 terms and measuring how many digits match the target constant
+3. **Selection:** Tournament selection picks high-fitness parents
+4. **LLM Mutation:** The local LLM (Qwen3-Coder-30B) proposes mathematically-motivated mutations — modifying polynomial degrees, introducing alternating signs, factorials, or product forms
+5. **LLM Crossover:** The LLM intelligently combines elements from two high-fitness parents
+6. **Archive:** Programs exceeding 5+ digits of accuracy are archived to SQLite for analysis
+
+### Architecture
+
+| Component | File | Purpose |
+| --- | --- | --- |
+| **LM Studio Client** | `math_ai/llm/llm_client.py` | OpenAI-compatible API client for local LLM inference |
+| **Program Sandbox** | `math_ai/agents/program_sandbox.py` | Safe eval environment with whitelisted ops, timeout, NaN/Inf rejection |
+| **Evolution Engine** | `math_ai/agents/alpha_evolve_engine.py` | Population management, tournament selection, generation loop |
+| **Pipeline Plugin** | `math_ai/strategies/alpha_evolve_strategy.py` | `BoundingStrategy` implementation for the `UniversalPipelineRouter` |
+| **Standalone Miner** | `scripts/evolve_miner.py` | CLI runner for long-running evolutionary discovery |
+
+### Running AlphaEvolve
+
+```bash
+# 1. Start LM Studio and load Qwen3-Coder-30B (or any model)
+# 2. Run the evolutionary miner:
+python scripts/evolve_miner.py --target catalan --generations 500 --population 30
+
+# Available targets: pi, e, catalan, gamma, golden_ratio, ln2, sqrt2, zeta3
+```
+
+> **No LM Studio?** The miner falls back to random mutations automatically — LLM just makes the search dramatically smarter.
+
+### Resource Management
+
+- **GPU:** Reserved for LM Studio (LLM inference). Fitness evaluation runs on **CPU** via GCF recurrence.
+- **VRAM:** ~16 GB for Qwen3-Coder-30B Q4 quantization.
+- **Discoveries:** Archived to `evolve_<target>.db` SQLite databases.
 
 ---
 
@@ -185,24 +269,42 @@ tensorboard --logdir runs/
 
 ## 🔧 Full Setup Guide
 
-### Manual Research Setup (Conda)
+See [`INSTALL.md`](INSTALL.md) for detailed instructions. Summary below.
+
+### Conda (Recommended)
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/meural-operator/Ramanujan-Home.git
 cd Ramanujan-Home
-
-# 2. Create conda environment
-conda env create -f setup/environment.yml
+conda env create -f environment.yml
 conda activate curiosity
-
-# 3. Seed mathematical verification tables (one-time, ~10s)
-python scripts/seed_euler_mascheroni_db.py
-
-# 4. Launch the edge compute node
-cd clients
-python edge_node.py
 ```
+
+> The `environment.yml` creates a `curiosity` environment with Python 3.13, PyTorch CUDA 13.0, and all 20+ dependencies.
+>
+> For older GPUs (RTX 30 series), edit `environment.yml` and change `cu130` → `cu124`.
+
+### pip (Alternative)
+
+```bash
+# CPU only
+pip install -r requirements.txt
+
+# NVIDIA GPU (CUDA 13.0)
+pip install -r requirements-cuda.txt
+```
+
+### Smart Auto-Installer
+
+```bash
+python clients/setup/autoinstaller.py
+```
+
+> Detects your system (GPU/CPU, conda/pip) and installs the correct configuration automatically.
+
+### AlphaEvolve Setup
+
+To use LLM-guided evolution, install [LM Studio](https://lmstudio.ai), load a model (recommended: `Qwen3-Coder-30B`), and start the local server at `localhost:1234`. The miner auto-detects LM Studio availability.
 
 ### 1-Click Deployment (Windows Volunteers)
 
@@ -210,7 +312,7 @@ python edge_node.py
 .\run_node.bat
 ```
 
-> The batch script handles Python isolation (Micromamba), dependency installation, Firebase credential generation, LHS table seeding, and GPU node launch — all automatically.
+> Handles Python isolation (Micromamba), dependency installation, Firebase credential generation, LHS table seeding, and GPU node launch — all automatically.
 
 ---
 
@@ -271,7 +373,12 @@ Ramanujan-Home/
 │       │   ├── models/
 │       │   │   └── actor_critic.py
 │       │   ├── agents/
-│       │   │   └── alpha_tensor_mcts.py
+│       │   │   ├── alpha_tensor_mcts.py          #    ✅ MCTS search agent
+│       │   │   ├── alpha_evolve_engine.py        #    ✅ LLM evolutionary engine
+│       │   │   └── program_sandbox.py            #    ✅ Safe eval sandbox
+│       │   ├── llm/                              #    ✅ LLM Integration
+│       │   │   ├── __init__.py
+│       │   │   └── llm_client.py                 #    LM Studio API client
 │       │   ├── environments/
 │       │   │   ├── AbstractRLEnvironment.py
 │       │   │   ├── EulerMascheroniEnvironment.py
@@ -281,7 +388,8 @@ Ramanujan-Home/
 │       │   │   ├── replay_buffer.py
 │       │   │   └── checkpoint.py
 │       │   └── strategies/
-│       │       └── mcts_strategy.py
+│       │       ├── mcts_strategy.py               #    ✅ Neural MCTS plugin
+│       │       └── alpha_evolve_strategy.py       #    ✅ AlphaEvolve plugin
 │       │
 │       └── utils/                               #    Mathematical Utilities
 │           ├── asymptotic_filter.py             #    ✅ Worpitzky convergence filter
@@ -310,6 +418,8 @@ Ramanujan-Home/
 │   └── runs/                                    #    TensorBoard logs
 │
 ├── scripts/                                     # ✅ Utility & Research Tools
+│   ├── evolve_miner.py                          #    ✅ AlphaEvolve standalone runner
+│   ├── publishable_discoveries_miner.py         #    ✅ Local publishable discovery miner
 │   ├── seed_euler_mascheroni_db.py
 │   ├── train_rl_em.py
 │   ├── euler_mascheroni_ai_search.py
@@ -324,7 +434,7 @@ Ramanujan-Home/
 │   │   └── split_execution.py
 │   └── paper_results/
 │
-├── tests/                                       # ✅ Verification Suite (15/15 passing)
+├── tests/                                       # ✅ Verification Suite (22/22 passing)
 │   ├── test_interfaces.py
 │   ├── test_universal_pipeline.py
 │   ├── test_lll_resolver.py
@@ -334,12 +444,17 @@ Ramanujan-Home/
 │   ├── test_fr_expansion.py
 │   ├── test_poly_domains.py
 │   ├── test_large_catalan.py
+│   ├── test_alphaevolve_sandbox.py               #    ✅ Sandbox safety, fitness evaluation
+│   ├── test_alphaevolve_llm.py                   #    ✅ LLM client mocks, response parsing
 │   ├── conjectures_tests.py
 │   └── boinc_scripts_tests.py
 │
 ├── README.md
+├── INSTALL.md                                    # ✅ Detailed installation guide
 ├── CHANGELOG.md
-├── requirements.txt
+├── environment.yml                               # ✅ Conda environment specification
+├── requirements.txt                              # ✅ pip deps (CPU PyTorch)
+├── requirements-cuda.txt                         # ✅ pip deps (CUDA PyTorch)
 └── setup.py
 ```
 
@@ -419,7 +534,7 @@ CREATE TABLE pending_hits (
 The project maintains a comprehensive test suite covering core abstractions, GPU parity, AI modules, and mathematical correctness:
 
 ```bash
-python -m unittest discover -s tests -v
+conda run -n curiosity python -m unittest discover -s tests -v
 ```
 
 | Test Module | Coverage Area |
@@ -433,6 +548,8 @@ python -m unittest discover -s tests -v
 | `test_fr_expansion.py` | Multi-dimensional PSLQ expansion |
 | `test_poly_domains.py` | Domain generator correctness |
 | `test_large_catalan.py` | Large-degree Catalan constant search |
+| `test_alphaevolve_sandbox.py` | Program sandbox safety, GCF fitness evaluation, timeout protection |
+| `test_alphaevolve_llm.py` | LLM client mock tests, lambda response parsing, random mutation fallback |
 | `conjectures_tests.py` | Known conjecture validation |
 | `boinc_scripts_tests.py` | BOINC distributed integration |
 
@@ -470,7 +587,8 @@ If you use this framework in your research, please cite:
 ## 🙏 Acknowledgements
 
 - **The Ramanujan Machine Project** ([Technion](https://www.ramanujanmachine.com/)) — foundational research on automated conjecture generation via continued fractions that inspired this framework's mathematical core.
-- **DeepMind's AlphaTensor** — architectural inspiration for the MCTS-guided neural search agent.
+- **DeepMind's AlphaTensor & AlphaEvolve** — architectural inspiration for the MCTS-guided neural search agent and the LLM-guided evolutionary program search.
+- **LM Studio** — local LLM inference platform powering the AlphaEvolve evolutionary search module.
 - **DIAT (Defence Institute of Advanced Technology)** — computational resources and research environment.
 
 ---
