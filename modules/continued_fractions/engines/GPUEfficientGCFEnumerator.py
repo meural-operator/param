@@ -5,7 +5,7 @@ import mpmath
 from time import time
 from typing import List
 from tqdm import tqdm
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 
 from .EfficientGCFEnumerator import EfficientGCFEnumerator, Match, RefinedMatch
@@ -124,8 +124,9 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
         refined_results = []
         
         pbar_worker = tqdm(total=0, desc="CPU Verify Multiproc", position=1, leave=False)
-        # Using ProcessPoolExecutor to shatter GIL bottlenecks during Deep Mpmath Precision
-        executor = ProcessPoolExecutor(max_workers=self.num_workers)
+        # Using ThreadPoolExecutor on Windows to avoid massive IPC pickling overhead of passing large LHS dicts.
+        # While mpmath holds the GIL, IPC for 2GB dicts is far worse than sequential GIL execution.
+        executor = ThreadPoolExecutor(max_workers=self.num_workers)
         futures = []
         
         # Prepare lightweight dict pointer for passing LHS references securely
@@ -198,12 +199,13 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
                         prev_q = tmp_q
                         prev_p = tmp_p
                         
-                        # Periodic scaling to prevent float64 overflow, taking max magnitude
-                        scale = q.abs().clamp_min(1.0)
-                        q /= scale
-                        p /= scale
-                        prev_q /= scale
-                        prev_p /= scale
+                        # Periodic scaling every 10 iterations to prevent float64 overflow while saving VRAM bandwidth
+                        if k % 10 == 0:
+                            scale = q.abs().clamp_min(1.0)
+                            q /= scale
+                            p /= scale
+                            prev_q /= scale
+                            prev_p /= scale
 
                     dist = key_factor * p / q
                     dist = torch.nan_to_num(dist, nan=0.0)
