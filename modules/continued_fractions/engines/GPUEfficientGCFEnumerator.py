@@ -158,12 +158,40 @@ class GPUEfficientGCFEnumerator(EfficientGCFEnumerator):
         valid_keys_int = [int(k) for k in valid_keys]
         lhs_keys_tensor = torch.tensor(valid_keys_int, dtype=torch.long, device=self.device)
         
-        # Batch chunks tuned for 20GB VRAM
-        # Each cross-product element uses ~560 bytes (tensors + buffers)
-        # CHUNK_A * CHUNK_B should stay under ~10M for safety
-        # Reduce these if you still get OOM errors
-        CHUNK_A = 500
-        CHUNK_B = 10000
+        # ─────────────────────────────────────────────────────────
+        # DYNAMIC VRAM BATCH ALLOCATION
+        # ─────────────────────────────────────────────────────────
+        if self.device.type == 'cuda':
+            # Query the hardware for exact free and total memory remaining
+            free_mem, _ = torch.cuda.mem_get_info()
+            
+            # Target 80% of FREE memory to leave headroom for OS and pytorch caching
+            usable_vram_bytes = free_mem * 0.8
+            
+            # Profile the algorithm's actual byte-cost per equation:
+            # a_expanded, b_expanded tensors: 8 bytes * N_terms * 2
+            # internal registers (q, p, prev_q, prev_p): 8 bytes * 4 = 32 bytes
+            # masking & conditional tensors during hits: ~100 bytes
+            bytes_per_combo = (16 * N_terms) + 132
+            
+            max_safe_bsz = int(usable_vram_bytes / bytes_per_combo)
+            
+            # Hardcap at 50,000,000 to prevent CUDA kernel scheduling timeouts
+            target_bsz = min(max_safe_bsz, 50_000_000)
+            
+            # Optimally factorize the batch dimension into 2D chunking limits
+            # that don't over-allocate beyond the actual mathematical domain size
+            CHUNK_A = min(N_a, max(1, int((target_bsz)**0.5)))
+            CHUNK_B = min(N_b, max(1, target_bsz // CHUNK_A))
+            
+            if verbose:
+                print(f"[GPU] Dynamic Scaler active: Hardware can safely evaluate {CHUNK_A * CHUNK_B:,} parallel combinations per pass.")
+        else:
+            # CPU Fallback (Keep limits low to prevent thrashing system RAM)
+            CHUNK_A = min(N_a, 500)
+            CHUNK_B = min(N_b, 1000)
+            if verbose:
+                print(f"[-] CPU compute detected. Limiting batch topology to {CHUNK_A * CHUNK_B:,} combinations.")
         
         # Determine total outer loops for tqdm
         total_a_chunks = (N_a + CHUNK_A - 1) // CHUNK_A
