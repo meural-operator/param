@@ -51,7 +51,7 @@ def main():
         "current_a_pos": 0,
         "current_b_pos": 0,
         "degree": 2,
-        "step_size": 10,
+        "step_size": 40,
         "status": "active"
     }
     

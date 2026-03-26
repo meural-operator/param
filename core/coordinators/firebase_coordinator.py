@@ -106,14 +106,35 @@ class FirebaseCoordinator(NetworkCoordinator):
                 print(f"[*] Problem '{self.problem_name}' status is '{status}'. Stopping.")
                 return None
                 
+            # Enforce massive compute blocks to prevent GPU pipeline starvation
+            step_size = max(cursor.get('step_size', 40), 40)
+            a_pos = cursor.get('current_a_pos', 0)
+            b_pos = cursor.get('current_b_pos', 0)
+            
+            # Atomically sweep the global cursor outward for the Distributed Network
+            new_cursor = {
+                "current_a_pos": a_pos + step_size
+            }
+            try:
+                patch_req = urllib.request.Request(
+                    cursor_url,
+                    data=json.dumps(new_cursor).encode(),
+                    headers={'Content-Type': 'application/json'},
+                    method='PATCH'
+                )
+                with urllib.request.urlopen(patch_req):
+                    pass
+            except Exception as e:
+                print(f"[!] Cursor advancement failed: {e}")
+                
             work_unit = {
                 "id": f"{self.problem_name}-dynamic",
-                "v2_bound_id": f"v4_{cursor.get('current_a_pos')}",
+                "v2_bound_id": f"v4_{a_pos}",
                 "problem_name": self.problem_name,
                 "a_deg": cursor.get('degree', 2),
                 "b_deg": cursor.get('degree', 2),
-                "a_coef_range": [[cursor.get('current_a_pos'), cursor.get('current_a_pos') + 10]] * (cursor.get('degree', 2)+1),
-                "b_coef_range": [[cursor.get('current_b_pos'), cursor.get('current_b_pos') + 10]] * (cursor.get('degree', 2)+1),
+                "a_coef_range": [[a_pos, a_pos + step_size]] * (cursor.get('degree', 2)+1),
+                "b_coef_range": [[b_pos, b_pos + step_size]] * (cursor.get('degree', 2)+1),
             }
             return work_unit
             
